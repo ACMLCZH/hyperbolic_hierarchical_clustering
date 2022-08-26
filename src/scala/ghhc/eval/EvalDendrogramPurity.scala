@@ -363,7 +363,7 @@ object DendrogramPurity {
         }
         synchronized{
           if (print)
-            System.err.print(s"\rThread ${Thread.currentThread().getId} Computing purities for pairs ${start} to ${end} of ${pairs.size} = ${100*end/pairs.size.toFloat}% done")
+            System.err.println(s"\rThread ${Thread.currentThread().getId} Computing purities for pairs ${start} to ${end} of ${pairs.size} = ${100*end/pairs.size.toFloat}% done")
           N += local_n
           sum_purities += local_purity
         }
@@ -379,6 +379,8 @@ object DendrogramPurity {
     val root = LoadEvalTree.load(opts.input.value)
     val pairs = allPairsForEval(root,opts.threads.value)
     val score = evalPar(pairs,opts.threads.value,opts.print.value,opts.strictDP.value)
+    System.err.println("???????????!!!!!!!!!!!!!!!!")
+    System.err.println(s"${opts.algorithm.value}\t${opts.dataset.value}\t${score}")
     println(s"${opts.algorithm.value}\t${opts.dataset.value}\t${score}")
   }
 
@@ -410,7 +412,7 @@ object ExpectedDendrogramPurity {
     val root = LoadEvalTree.load(opts.input.value)
     val pairs = all_pairs_for_eval(root,ids,opts.threads.value)
     val score = evalPar(pairs,opts.threads.value,opts.print.value,opts.strictDP.value)
-    System.err.println()
+    System.err.println("???????????????????????")
     println(s"${opts.algorithm.value}\t${opts.dataset.value}\t${score}")
   }
 

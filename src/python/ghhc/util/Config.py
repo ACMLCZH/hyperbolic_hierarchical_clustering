@@ -18,11 +18,22 @@ import random
 import os
 import numpy as np
 
+abbr_dict = {
+    'alg_name': "ALG",
+    'init_method': "IM",
+    'tree_learning_rate': "LR",
+    'loss': "L",
+    'lca_type': "LCA",
+    'num_samples': "NS",
+    'batch_size': "BS",
+    'struct_prior': "SP"
+}
+
 
 class Config(object):
     """Config object"""
 
-    def __init__(self,filename=None):
+    def __init__(self, filename=None):
         # Settings
         self.config_name = filename
         self.dataset_name = 'dataset'
@@ -82,7 +93,7 @@ class Config(object):
         self.random = random.Random(self.random_seed)
 
     def to_json(self):
-        return json.dumps(self.filter_json(self.__dict__),indent=4,sort_keys=True)
+        return json.dumps(self.filter_json(self.__dict__), indent=4, sort_keys=True)
 
     def save_config(self, exp_dir, filename='config.json'):
         with open(os.path.join(exp_dir, filename), 'w') as fout:
@@ -90,12 +101,14 @@ class Config(object):
             fout.write('\n')
 
     def to_file_name_from_fields(self, fields):
-        return "-".join(["%s=%s" % (f,self.__dict__[f]) for f in fields])
+        return "-".join(["%s=%s" % (abbr_dict[f], self.__dict__[f]) for f in fields])
 
     def to_filename(self):
-        return self.to_file_name_from_fields(['alg_name', 'init_method', 'tree_learning_rate',
-                                              'loss', 'lca_type', 'num_samples',
-                                              'batch_size', 'struct_prior'])
+        # return self.to_file_name_from_fields(['alg_name', 'init_method', 'tree_learning_rate',
+        #                                       'loss', 'lca_type', 'num_samples',
+        #                                       'batch_size', 'struct_prior'])
+        return ""
+        # return self.to_file_name_from_fields(['alg_name', 'init_method', 'tree_learning_rate'])
 
     def filter_json(self, the_dict):
         # print("filter_json")
@@ -104,17 +117,16 @@ class Config(object):
         for k in the_dict.keys():
             # print("k : {} \t {} \t {}".format(k,the_dict[k],type(the_dict[k])))
             if type(the_dict[k]) is str or \
-                type(the_dict[k]) is float or \
-                type(the_dict[k]) is int or \
-                type(the_dict[k]) is list or \
-                type(the_dict[k]) is bool or \
-                the_dict[k] is None:
+                    type(the_dict[k]) is float or \
+                    type(the_dict[k]) is int or \
+                    type(the_dict[k]) is list or \
+                    type(the_dict[k]) is bool or \
+                    the_dict[k] is None:
                 # print("res[k] : {} \t {} \t {}".format(k, the_dict[k], type(the_dict[k])))
                 res[k] = the_dict[k]
             elif type(the_dict[k]) is dict:
                 res[k] = self.filter_json(the_dict[k])
         return res
 
+
 DefaultConfig = Config()
-
-

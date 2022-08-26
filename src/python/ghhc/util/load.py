@@ -19,29 +19,33 @@ from absl import logging
 
 tf.enable_eager_execution()
 
+
 def load_xcluster(filename):
-  raw = np.loadtxt(filename,dtype=np.float32)
-  pids = raw[:, 0].astype(np.int32)
-  lbls = raw[:, 1].astype(np.int32)
-  X = raw[:, 2:]
-  return pids, lbls, X
+    raw = np.loadtxt(filename, dtype=np.float32)
+    pids = raw[:, 0].astype(np.int32)
+    lbls = raw[:, 1].astype(np.int32)
+    X = raw[:, 2:]
+    return pids, lbls, X
+
 
 def zero_meaned(X):
-  return X - np.mean(X, 0)
+    return X - np.mean(X, 0)
+
 
 def unit_normed(X, norm=1.0):
-  un = X / np.linalg.norm(X, axis=1, keepdims=True)
-  un = tf.clip_by_norm(un, norm, axes=[1]).numpy()
-  return un
+    un = X / np.linalg.norm(X, axis=1, keepdims=True)
+    un = tf.clip_by_norm(un, norm, axes=[1]).numpy()
+    return un
+
 
 def load(filename, config):
-  logging.info('Loading data from filename %s' % filename)
-  logging.info('Using xcluster format')
-  pids, lbls, X = load_xcluster(filename)
-  if config.zero_mean:
-    logging.info('Zero meaning data')
-    X = zero_meaned(X)
-  if config.unit_norm:
-    logging.info('Unit norming data')
-    X = unit_normed(X, config.max_norm)
-  return pids, lbls, X
+    logging.info('Loading data from filename %s' % filename)
+    logging.info('Using xcluster format')
+    pids, lbls, X = load_xcluster(filename)
+    if config.zero_mean:
+        logging.info('Zero meaning data')
+        X = zero_meaned(X)
+    if config.unit_norm:
+        logging.info('Unit norming data')
+        X = unit_normed(X, config.max_norm)
+    return pids, lbls, X

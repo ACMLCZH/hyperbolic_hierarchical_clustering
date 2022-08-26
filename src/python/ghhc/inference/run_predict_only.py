@@ -35,36 +35,37 @@ tf.enable_eager_execution()
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('config', None, "Config file")
-flags.DEFINE_string('data_filename',None, 'data filename')
+flags.DEFINE_string('data_filename', None, 'data filename')
 flags.DEFINE_string('output_filename', 'tree.tsv', 'output filename')
 logging.set_verbosity(logging.INFO)
 
 
 def main(argv):
-  config = Config(FLAGS.config)
+    config = Config(FLAGS.config)
 
-  filename = FLAGS.data_filename if FLAGS.data_filename is not None else config.inference_file
+    filename = FLAGS.data_filename if FLAGS.data_filename is not None else config.inference_file
 
-  assert(config.exp_out_dir is not None)
-  assert (config.last_model is not None)
+    assert (config.exp_out_dir is not None)
+    assert (config.last_model is not None)
 
-  config.exp_out_dir = os.path.join(config.exp_out_dir, 'results')
-  mkdir_p(config.exp_out_dir)
-  config.save_config(config.exp_out_dir,config.to_filename() + ".json")
-  config.save_config(config.exp_out_dir)
+    config.exp_out_dir = os.path.join(config.exp_out_dir, 'results')
+    mkdir_p(config.exp_out_dir)
+    config.save_config(config.exp_out_dir, config.to_filename() + ".json")
+    config.save_config(config.exp_out_dir)
 
-  pids, lbls, dataset = load(filename, config)
+    pids, lbls, dataset = load(filename, config)
 
-  dev_pids, dev_lbls, dev_dataset = load(config.dev_file, config)
+    dev_pids, dev_lbls, dev_dataset = load(config.dev_file, config)
 
-  init_tree = random_pts(dataset, config.num_internals, config.random_pts_scale)
+    init_tree = random_pts(dataset, config.num_internals, config.random_pts_scale)
 
-  tree = gHHCTree(init_tree.copy(), config=config)
-  optimizer = tf.train.GradientDescentOptimizer(config.tree_learning_rate)
-  inf = gHHCInference(tree, optimizer, config, dev_dataset, dev_lbls)
-  inf.ckpt.restore(tf.train.latest_checkpoint(inf.config.checkpoint_dir))
+    tree = gHHCTree(init_tree.copy(), config=config)
+    optimizer = tf.train.GradientDescentOptimizer(config.tree_learning_rate)
+    inf = gHHCInference(tree, optimizer, config, dev_dataset, dev_lbls)
+    inf.ckpt.restore(tf.train.latest_checkpoint(inf.config.checkpoint_dir))
 
-  tree.write_tsv(config.exp_out_dir + "/" + FLAGS.output_filename, dataset, lbls=lbls, pids=pids)
+    tree.write_tsv(config.exp_out_dir + "/" + FLAGS.output_filename, dataset, lbls=lbls, pids=pids)
+
 
 if __name__ == '__main__':
-  app.run(main)
+    app.run(main)
