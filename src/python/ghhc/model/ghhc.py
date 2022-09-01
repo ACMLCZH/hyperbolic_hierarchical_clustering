@@ -148,9 +148,9 @@ class gHHCTree(tf.keras.Model):
         for i in range(0, x_i.shape[0], batch_size):
             logging.log_every_n_seconds(logging.INFO, 'p_par_to_batched_np processed %s of %s', 5, i, x_i.shape[0])
             for j in range(0, nodes.shape[0], batch_size):
-                dists[i:(i + batch_size), j:(j + batch_size)] = self.p_par_to_broadcast(x_i[i:(i + batch_size), :],
-                                                                                        nodes[j:(j + batch_size),
-                                                                                        :]).numpy()
+                dists[i:(i + batch_size), j:(j + batch_size)] = self.p_par_to_broadcast(
+                    x_i[i:(i + batch_size), :], nodes[j:(j + batch_size), :]
+                ).numpy()
         return dists
 
     def compute_loss(self, x_i, x_j, x_k):
@@ -204,11 +204,11 @@ class gHHCTree(tf.keras.Model):
     def p_par_assign_to(self, children, parents, exclude_diag=False, proj_child=True):
         if proj_child:
             children = self.projection(children)
-        dists = self.p_par_to_batched_np(children, parents)
+        dists = self.p_par_to_batched_np(children, parents)     # shape (child, parent)
         children_norm = tf.norm(children, axis=1, keepdims=True)
         internal_norm = tf.norm(parents, axis=1, keepdims=True)
         eligible = tf.less(-children_norm + tf.transpose(internal_norm), 0).numpy()
-        dists[eligible == False] = np.Inf
+        dists[eligible == False] = np.Inf                       # If Norm(child) < Norm(parent) dist = INF
         if exclude_diag:
             np.fill_diagonal(dists, np.Inf)
         assignments = np.argmin(dists, axis=1)
@@ -320,7 +320,7 @@ class gHHCTree(tf.keras.Model):
         internal_norms = poincare_norm(self.internals)
         children = tf.gather(internal_norms, pairs[:, 0])
         parents = tf.gather(internal_norms, pairs[:, 1])
-        logits1 = tf.nn.relu(parents - children + self.gamma)
+        logits1 = tf.nn.relu(parents - children + self.gamma)   # gamma -> margin
         min_norm = tf.argmin(internal_norms).numpy()[0]
         logging.log_every_n(logging.INFO, 'min_norm %s %s', 500, min_norm, internal_norms[min_norm])
         max_norm = tf.argmax(internal_norms).numpy()[0]
@@ -375,14 +375,14 @@ class gHHCInference(object):
                 if self.ghhcTree.cached_pairs is None:
                     self.dev_eval(idx + examples_so_far)
 
+                # update parameters by structure loss every struct_prior_every steps
                 if (idx + examples_so_far) % self.config.struct_prior_every == 0:
                     for idx2 in range(self.config.num_struct_prior_batches):
                         start_time = time.time()
-                        logging.log_every_n(logging.INFO,
-                                            '[STRUCTURE] Processed %s of %s batches || Avg. Loss %s || Avg Time %s' % (
-                                                idx2, 100, struct_loss_so_far / max(idx2, 1),
-                                                time_so_far / max(idx2, 1)),
-                                            100)
+                        logging.log_every_n(
+                            logging.INFO, '[STRUCTURE] Processed %s of %s batches || Avg. Loss %s || Avg Time %s' % (
+                                idx2, 100, struct_loss_so_far / max(idx2, 1), time_so_far / max(idx2, 1)
+                            ), 100)
                         with tf.GradientTape() as tape:
                             sloss = self.ghhcTree.structure_loss()
                             struct_loss_so_far += sloss.numpy()
@@ -470,6 +470,7 @@ class gHHCInference(object):
         if self.config.shuffle:
             indexes = indexes[np.random.permutation(indexes.shape[0]), :]
         for i in range(self.config.num_iterations):
+            logging.info(f"curr_idx = {curr_idx}")
             if curr_idx > indexes.shape[0]:
                 logging.info('Restarting....')
                 curr_idx = 0

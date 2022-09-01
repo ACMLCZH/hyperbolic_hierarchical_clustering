@@ -33,6 +33,7 @@ def batch_find_neighbors(X, nn: NearestNeighbors, batch_size=1000):
     return res
 
 
+# (i, j, k) where (i, j) has the highest similarity
 def order_triple(X, i, j, k, comparison):
     ij = comparison(X[i, :], X[j, :])
     jk = comparison(X[j, :], X[k, :])
@@ -77,4 +78,4 @@ if __name__ == "__main__":
             samples[i, :] = sample_random(X, sim_fn)
         else:
             samples[i, :] = sample_nn(X, Xnn, sim_fn)
-    np.save(config.sample_outfile, samples)
+    np.save(config.sample_outfile, samples)     # (num_samples, 3)
