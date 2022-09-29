@@ -35,6 +35,7 @@ if __name__ == "__main__":
 
     config = Config(sys.argv[1])
     ts = sys.argv[2]
+    np.random.seed(config.random_seed)
 
     # now = datetime.datetime.now()
     # ts = "{:04d}{:02d}{:02d}{:02d}{:02d}".format(now.year, now.month, now.day, now.hour, now.minute)
@@ -47,7 +48,6 @@ if __name__ == "__main__":
     config.save_config(config.exp_out_dir)
 
     pids, lbls, dataset = load(config.inference_file, config)
-
     dev_pids, dev_lbls, dev_dataset = load(config.dev_file, config)
 
     if config.random_projection is not None:

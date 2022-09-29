@@ -124,6 +124,31 @@ class gHHCTree(tf.keras.Model):
         else:
             self.projection = lambda x: x
 
+        self.mean_feat = None
+        self.pca_matrix = None
+
+    def build_pca(self, dataset):
+        self.mean_feat = np.mean(dataset, axis=0)
+        zm_dataset = dataset - self.mean_feat
+        cov = 1.0 / dataset.shape[0] * np.matmul(zm_dataset.T, zm_dataset)
+        # eig_val, eig_vec = torch.eig(cov, eigenvectors=True)
+        eig_val, eig_vec = np.linalg.eig(cov)
+        logging.info(eig_val)
+        # print(eig_val, eig_vec)
+        # eig_val, eig_vec = eig_val.type(torch.float32), eig_vec.type(torch.float32)
+        # print(eig_val, eig_vec)
+        # eig_val = torch.norm(eig_val, dim=1)
+        idx = np.argsort(-np.abs(eig_val))
+        eig_vec = eig_vec[:, idx]
+        self.pca_matrix = eig_vec[:, :2]
+        for col in range(2):
+            if self.pca_matrix[0, col] < 0:
+                self.pca_matrix[:, col] = -self.pca_matrix[:, col]
+        logging.info(self.mean_feat)
+        logging.info(self.pca_matrix)
+        # self.mean_feat = self.mean_feat.detach().numpy()
+        # self.pca_matrix = self.pca_matrix.detach().numpy()
+
     def project(self, x_i, x_j, x_k):
         return self.projection(x_i), self.projection(x_j), self.projection(x_k)
 
@@ -176,9 +201,19 @@ class gHHCTree(tf.keras.Model):
         logits2 = lca_ij_softmax * x_j_dists - lca_ijk_softmax * x_j_dists
         logits3 = lca_ijk_softmax * x_k_dists - lca_ij_softmax * x_k_dists
 
-        per_ex_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits1), logits=logits1) \
-                      + tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits2), logits=logits2) \
-                      + tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits3), logits=logits3)
+        # assert not tf.reduce_any(tf.is_nan(x_i_dists))
+        # assert not tf.reduce_any(tf.is_nan(x_j_dists))
+        # assert not tf.reduce_any(tf.is_nan(x_k_dists))
+        # assert not tf.reduce_any(tf.is_nan(lca_ij_softmax))
+        # assert not tf.reduce_any(tf.is_nan(lca_ijk_softmax))
+        # assert not tf.reduce_any(tf.is_nan(logits1))
+        # assert not tf.reduce_any(tf.is_nan(logits2))
+        # assert not tf.reduce_any(tf.is_nan(logits3))
+        # per_ex_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits1), logits=logits1) \
+        #               + tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits2), logits=logits2) \
+        #               + tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits3), logits=logits3)
+
+        per_ex_loss = tf.sigmoid(logits1) + tf.sigmoid(logits2) + tf.sigmoid(logits3)
         loss = tf.reduce_sum(per_ex_loss)
         return loss
 
@@ -229,8 +264,9 @@ class gHHCTree(tf.keras.Model):
             np.expand_dims(internal_to_par_assign, 1)
         ], axis=1)
         self.cached_pairs = self.cached_pairs[self.cached_pairs[:, 1] != -1]
-        with (open(filename + '.internals', 'w'), open(filename + '.leaves', 'w'), open(filename, 'w')) \
-                as (fouti, foutl, fout):
+        with open(filename + '.internals', 'w') as fouti, \
+             open(filename + '.leaves', 'w') as foutl, \
+             open(filename, 'w') as fout:
             i = -1
             pid = 'int_%s' % i
             best_pid = 'best_int_%s' % i
@@ -263,6 +299,10 @@ class gHHCTree(tf.keras.Model):
         internals = self.internals.numpy()
         leaf_to_par_assign = self.p_par_assign_to(leaves, internals)
         internal_to_par_assign = self.p_par_assign_to_internal(internals, internals, proj_child=False)
+
+        internals = (internals - self.mean_feat) @ self.pca_matrix
+        leaves = (leaves - self.mean_feat) @ self.pca_matrix
+
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
@@ -271,35 +311,43 @@ class gHHCTree(tf.keras.Model):
         ax.spines['right'].set_visible(False)
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
-        ax.tick_params(axis='x', which='both', bottom='off', top='off',
-                       color='white')
-        ax.tick_params(axis='y', which='both', left='off', right='off',
-                       color='white')
+        ax.tick_params(axis='x', which='both', bottom='off', top='off', color='white')
+        ax.tick_params(axis='y', which='both', left='off', right='off', color='white')
         # plt.scatter(0, 0, label='root', marker='^', zorder=2)
         # plt.annotate('root', xy=(0,0), size=3)
-
-        for idx in range(internals.shape[0]):
-            plt.scatter(internals[idx, 0], internals[idx, 1], label='int_%s' % idx, s=100, marker='^', zorder=2)
-            # plt.annotate('int_%s' % idx, xy=(internals[idx,0], internals[idx,1]), size=5)
+        plt.scatter(internals[:, 0], internals[:, 1], s=100, c="r", marker='^', zorder=2)
+        # for idx in range(internals.shape[0]):
+        #     plt.scatter(internals[idx, 0], internals[idx, 1], label='int_%s' % idx, s=100, c="r", marker='^', zorder=2)
+        # plt.annotate('int_%s' % idx, xy=(internals[idx,0], internals[idx,1]), size=5)
         for idx in range(internals.shape[0]):
             if internal_to_par_assign[idx] != -1:
-                plt.plot([internals[idx, 0], internals[internal_to_par_assign[idx], 0]],
-                         [internals[idx, 1], internals[internal_to_par_assign[idx], 1]], linewidth=2,
-                         c='k', zorder=1)
+                plt.arrow(internals[idx, 0], internals[idx, 1],
+                          internals[internal_to_par_assign[idx], 0] - internals[idx, 0],
+                          internals[internal_to_par_assign[idx], 1] - internals[idx, 1],
+                          width=0.005, length_includes_head=True, color="black", zorder=1)
+                # plt.plot([internals[idx, 0], internals[internal_to_par_assign[idx], 0]],
+                #          [internals[idx, 1], internals[internal_to_par_assign[idx], 1]], linewidth=2,
+                #          c='k', zorder=1)
             # else:
             # plt.plot([internals[idx, 0], 0],
             #                    [internals[idx, 1], 0], linewidth=1,
             #                    c='k', zorder=1)
-        for idx in range(leaves.shape[0]):
-            plt.scatter(leaves[idx, 0], leaves[idx, 1], s=100, label='%s' % idx, marker='o', zorder=2)
 
-            # plt.annotate('pt_%s' % idx, xy=(leaves[idx, 0], leaves[idx, 1]), size=5)
+        plt.scatter(leaves[:, 0], leaves[:, 1], s=100, c="b", marker='o', zorder=2)
+        # for idx in range(leaves.shape[0]):
+        #     plt.scatter(leaves[idx, 0], leaves[idx, 1], s=100, c="b", label='%s' % idx, marker='o', zorder=2)
+        # plt.annotate('pt_%s' % idx, xy=(leaves[idx, 0], leaves[idx, 1]), size=5)
+
         for idx in range(leaves.shape[0]):
             if leaf_to_par_assign[idx] != -1:
                 # print('gpid %s lpid %s' % (grinch_par_id, leaf_to_par_assign[idx]))
-                plt.plot([leaves[idx, 0], internals[leaf_to_par_assign[idx], 0]],
-                         [leaves[idx, 1], internals[leaf_to_par_assign[idx], 1]], linewidth=2,
-                         c='k', zorder=1)
+                plt.arrow(leaves[idx, 0], leaves[idx, 1],
+                          internals[leaf_to_par_assign[idx], 0] - leaves[idx, 0],
+                          internals[leaf_to_par_assign[idx], 1] - leaves[idx, 1],
+                          width=0.005, length_includes_head=True, color="black", zorder=1)
+                # plt.plot([leaves[idx, 0], internals[leaf_to_par_assign[idx], 0]],
+                #          [leaves[idx, 1], internals[leaf_to_par_assign[idx], 1]], linewidth=2,
+                #          c='k', zorder=1)
             # else:
             #     plt.plot([leaves[idx, 0], 0],
             #                        [leaves[idx, 1], 0], linewidth=1,
@@ -423,7 +471,7 @@ class gHHCInference(object):
             time_so_far += end_time - start_time
 
         logging.info('Processed %s of %s batches || Avg. Loss %s || Avg Time %s' % (
-            x_i.shape[0], x_i.shape[0], loss_so_far / x_i.shape[0], time_so_far / max(x_i.shape[0], 1)))
+            x_i.shape[0], x_i.shape[0], loss_so_far, time_so_far / max(x_i.shape[0], 1)))
 
         # save model at the end of training
         self.ckpt.save(self.checkpoint_prefix)
@@ -463,7 +511,9 @@ class gHHCInference(object):
         else:
             return 0.0
 
-    def inference(self, indexes, dataset, batch_size=1000, episode_size=5000):
+    def inference(self, indexes, dataset, batch_size=1000):
+        self.ghhcTree.build_pca(dataset)
+
         batches_so_far = 0
         curr_idx = 0
         episode_size = self.config.episode_size
@@ -481,3 +531,4 @@ class gHHCInference(object):
                                                      indexes[curr_idx:(curr_idx + episode_size), 1],
                                                      indexes[curr_idx:(curr_idx + episode_size), 2],
                                                      dataset, batch_size, examples_so_far=batches_so_far)
+            curr_idx += episode_size

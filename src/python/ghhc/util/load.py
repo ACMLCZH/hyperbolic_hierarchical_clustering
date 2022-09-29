@@ -38,14 +38,28 @@ def unit_normed(X, norm=1.0):
     return un
 
 
-def load(filename, config):
+def load(filename, config, no_lbl=False):
     logging.info('Loading data from filename %s' % filename)
     logging.info('Using xcluster format')
-    pids, lbls, X = load_xcluster(filename)
+    if no_lbl:
+        pids, lbls = None, None
+        X = np.load(filename)
+    else:
+        pids, lbls, X = load_xcluster(filename)
+
+    logging.info(f"{np.linalg.norm(np.mean(X, axis=0))} (mean before)")
+    logging.info(f"{np.max(np.linalg.norm(X, axis=1))} (max before)")
+    logging.info(f"{np.min(np.linalg.norm(X, axis=1))} (min before)")
+
     if config.zero_mean:
         logging.info('Zero meaning data')
         X = zero_meaned(X)
     if config.unit_norm:
         logging.info('Unit norming data')
         X = unit_normed(X, config.max_norm)
+
+    logging.info(f"{np.linalg.norm(np.mean(X, axis=0))} (mean after)")
+    logging.info(f"{np.max(np.linalg.norm(X, axis=1))} (max after)")
+    logging.info(f"{np.min(np.linalg.norm(X, axis=1))} (min after)")
+
     return pids, lbls, X

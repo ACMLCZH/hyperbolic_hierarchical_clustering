@@ -42,6 +42,7 @@ class Config(object):
         self.exp_out_dir = None
 
         self.inference_file = None
+        self.strict_data = None
 
         # Preprocessing
         self.unit_norm = True
