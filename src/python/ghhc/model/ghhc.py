@@ -267,15 +267,15 @@ class gHHCTree(tf.keras.Model):
         with open(filename + '.internals', 'w') as fouti, \
              open(filename + '.leaves', 'w') as foutl, \
              open(filename, 'w') as fout:
-            i = -1
-            pid = 'int_%s' % i
-            best_pid = 'best_int_%s' % i
-            par_id = 'None'
-            fout.write('%s\t%s\tNone\n' % (pid, par_id))
-            fout.write('%s\t%s\tNone\n' % (best_pid, pid))
+            # i = -1
+            # pid = 'int_%s' % i
+            # best_pid = 'best_int_%s' % i
+            # par_id = 'None'
+            # fout.write('%s\t%s\tNone\n' % (pid, par_id))
+            # fout.write('%s\t%s\tNone\n' % (best_pid, pid))
 
-            fouti.write('%s\t%s\tNone\n' % (pid, par_id))
-            fouti.write('%s\t%s\tNone\n' % (best_pid, pid))
+            # fouti.write('%s\t%s\tNone\n' % (pid, par_id))
+            # fouti.write('%s\t%s\tNone\n' % (best_pid, pid))
 
             for i in range(leaf_to_par_assign.shape[0]):
                 logging.log_every_n_seconds(logging.INFO, 'Wrote %s leaves' % i, 5)
@@ -289,11 +289,11 @@ class gHHCTree(tf.keras.Model):
                 logging.log_every_n_seconds(logging.INFO, 'Wrote %s internals' % i, 5)
                 pid = 'int_%s' % i
                 par_id = 'int_%s' % internal_to_par_assign[i]
-                best_pid = 'best_int_%s' % i
+                # best_pid = 'best_int_%s' % i
                 fout.write('%s\t%s\tNone\n' % (pid, par_id))
-                fout.write('%s\t%s\tNone\n' % (best_pid, par_id))
+                # fout.write('%s\t%s\tNone\n' % (best_pid, par_id))
                 fouti.write('%s\t%s\tNone\n' % (pid, par_id))
-                fouti.write('%s\t%s\tNone\n' % (best_pid, par_id))
+                # fouti.write('%s\t%s\tNone\n' % (best_pid, par_id))
 
     def plot_tree(self, leaves, filename):
         internals = self.internals.numpy()
@@ -358,6 +358,7 @@ class gHHCTree(tf.keras.Model):
         ax.add_artist(circle)
         plt.axis('off')
         plt.savefig(filename)
+        plt.close()
 
     def structure_loss(self):
         res = tf.reduce_sum(self.child_parent_norm_loss(self.cached_pairs))
@@ -482,15 +483,18 @@ class gHHCInference(object):
 
     def dev_eval(self, steps):
         if self.dev_set is not None:
-            start_dev = time.time()
             mkdir_p(os.path.join(self.config.exp_out_dir, 'dev'))
             filename = os.path.join(self.config.exp_out_dir, 'dev', 'dev_tree_%s.tsv' % steps)
             self.ghhcTree.write_tsv(filename, self.dev_set, lbls=self.dev_lbls)
-            dp = eval_dp(filename, os.path.join(self.config.exp_out_dir, 'dev', 'dev_score_%s.tsv' % steps),
-                         self.config.threads, self.config.dev_points_file)
-            logging.info('DEV EVAL @ %s minibatches || %s DP' % (steps, dp))
-            end_dev = time.time()
-            logging.info('Finished Dev Eval in %s seconds' % (end_dev - start_dev))
+            if self.dev_lbls is not None:
+                start_dev = time.time()
+                dp = eval_dp(filename, os.path.join(self.config.exp_out_dir, 'dev', 'dev_score_%s.tsv' % steps),
+                             self.config.threads, self.config.dev_points_file)
+                logging.info('DEV EVAL @ %s minibatches || %s DP' % (steps, dp))
+                end_dev = time.time()
+                logging.info('Finished Dev Eval in %s seconds' % (end_dev - start_dev))
+            else:
+                dp = 0.0
             if self.config.save_dev_pics:
                 filename = os.path.join(self.config.exp_out_dir, 'dev', 'dev_tree_%s.png' % steps)
                 self.ghhcTree.plot_tree(self.dev_set, filename)
